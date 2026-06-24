@@ -29,7 +29,18 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Shortcuts") {
+                HotkeyRecorderView(title: "Polish selection", hotkey: polishHotkeyBinding)
+                HotkeyRecorderView(title: "Open settings", hotkey: settingsHotkeyBinding)
+            }
+
             Section("General") {
+                Toggle("Show menu bar icon", isOn: showIconBinding)
+                if !state.settings.showMenuBarIcon {
+                    Text("Icon hidden. Reopen settings any time with \(state.settings.settingsHotkey.displayString).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Toggle("Launch at login", isOn: launchBinding)
                 if !PermissionsManager.hasAccessibility() {
                     Button("Grant Accessibility Permission…") {
@@ -73,6 +84,18 @@ struct SettingsView: View {
 
     private var modelBinding: Binding<String> {
         Binding(get: { state.settings.model }, set: { v in state.update { $0.model = v } })
+    }
+
+    private var polishHotkeyBinding: Binding<HotkeyConfig> {
+        Binding(get: { state.settings.hotkey }, set: { v in state.update { $0.hotkey = v } })
+    }
+
+    private var settingsHotkeyBinding: Binding<HotkeyConfig> {
+        Binding(get: { state.settings.settingsHotkey }, set: { v in state.update { $0.settingsHotkey = v } })
+    }
+
+    private var showIconBinding: Binding<Bool> {
+        Binding(get: { state.settings.showMenuBarIcon }, set: { v in state.update { $0.showMenuBarIcon = v } })
     }
 
     private var launchBinding: Binding<Bool> {
