@@ -12,11 +12,18 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     func show<Content: View>(@ViewBuilder _ content: () -> Content) {
         if window == nil {
             let hosting = NSHostingController(rootView: content())
+            // Do NOT let the hosting controller drive the window size from the
+            // SwiftUI ideal size — with a Form that produces an unstable size
+            // negotiation (window resizes content resizes window…), which spins
+            // the CPU and renders an empty window. We set a fixed size instead.
+            hosting.sizingOptions = []
             let w = NSWindow(contentViewController: hosting)
             w.title = "Polish My Writing Settings"
             w.styleMask = [.titled, .closable, .resizable]
             w.isReleasedWhenClosed = false
             w.delegate = self
+            w.setContentSize(NSSize(width: 480, height: 600))
+            w.contentMinSize = NSSize(width: 420, height: 360)
             w.center()
             window = w
         }

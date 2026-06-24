@@ -60,8 +60,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 420)
-        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear { apiKeyDraft = state.apiKey(for: state.settings.provider) }
     }
 
