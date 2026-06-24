@@ -10,6 +10,7 @@ final class AppState: ObservableObject {
 
     private let capturing = TextCaptureService()
     private let hotkeys = HotkeyManager()
+    private let settingsWindow = SettingsWindowController()
     private var notifier: Notifier!
     private var service: PolishService!
     private var isPolishing = false
@@ -17,23 +18,6 @@ final class AppState: ObservableObject {
     private enum HotkeyID {
         static let polish: UInt32 = 1
         static let settings: UInt32 = 2
-    }
-
-    /// Opens the Settings window programmatically and brings it to the front
-    /// (above other apps' windows). Has a working default so it works on first run
-    /// and when the menu-bar icon is hidden.
-    var openSettings: () -> Void = {
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        // The SwiftUI Settings window may be created asynchronously; bring it
-        // forward once it exists so it never hides behind other windows.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-            let window = NSApp.windows.first {
-                $0.identifier?.rawValue == "com_apple_SwiftUI_Settings_window"
-            } ?? NSApp.windows.first { $0.isVisible && $0.canBecomeMain }
-            window?.makeKeyAndOrderFront(nil)
-            window?.orderFrontRegardless()
-        }
     }
 
     init(
@@ -44,7 +28,7 @@ final class AppState: ObservableObject {
         self.secretStore = secretStore
         self.settings = settingsStore.load()
 
-        self.notifier = Notifier(openSettings: { [weak self] in self?.openSettings() })
+        self.notifier = Notifier(openSettings: { [weak self] in self?.presentSettings() })
         self.service = PolishService(
             settingsProvider: { [weak self] in self?.settings ?? .default },
             secretStore: secretStore,
@@ -54,21 +38,30 @@ final class AppState: ObservableObject {
             restoreDelayNanos: 150_000_000
         )
         registerHotkeys()
-        // Request Accessibility at launch (not lazily when Settings opens), since
-        // the synthetic ⌘C/⌘V are no-ops without it — the core feature depends on it.
-        start()
+        // No launch-time Accessibility prompt: we ask only when the user actually
+        // invokes the polish shortcut without permission (see registerHotkeys),
+        // which avoids nagging on every launch.
     }
 
-    func start() {
-        _ = PermissionsManager.requestAccessibility()
+    /// Opens the Settings window and brings it to the front. Works on first run and
+    /// when the menu-bar icon is hidden.
+    func presentSettings() {
+        settingsWindow.show { SettingsView(state: self) }
     }
 
     private func registerHotkeys() {
         let polishOK = hotkeys.register(id: HotkeyID.polish, settings.hotkey) { [weak self] in
             guard let self else { return }
-            // Serialize fires: ignore a new hotkey press while a polish is in flight,
-            // so a rapid double-tap can't corrupt the saved-clipboard state.
             Task { @MainActor in
+                // The synthetic ⌘C/⌘V are silently dropped without Accessibility
+                // trust, so guide the user instead of failing mysteriously.
+                guard PermissionsManager.hasAccessibility() else {
+                    self.notifier.notify("Polish My Writing needs Accessibility permission to replace text. Grant it in the dialog (or Settings) and try again.")
+                    _ = PermissionsManager.requestAccessibility()
+                    return
+                }
+                // Serialize fires: ignore a new hotkey press while a polish is in
+                // flight, so a rapid double-tap can't corrupt the saved clipboard.
                 guard !self.isPolishing else { return }
                 self.isPolishing = true
                 await self.service.polishSelection()
@@ -76,7 +69,7 @@ final class AppState: ObservableObject {
             }
         }
         let settingsOK = hotkeys.register(id: HotkeyID.settings, settings.settingsHotkey) { [weak self] in
-            Task { @MainActor in self?.openSettings() }
+            Task { @MainActor in self?.presentSettings() }
         }
         if !polishOK {
             notifier.notify("Could not register the polish shortcut (\(settings.hotkey.displayString)) — another app may be using it. Pick a different one in Settings.")

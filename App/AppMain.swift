@@ -21,14 +21,10 @@ struct PolishMyWritingApp: App {
                 ForEach(PolishLevel.allCases, id: \.self) { Text($0.displayName).tag($0) }
             }
             Divider()
-            Button("Settings…") { state.openSettings() }
+            Button("Settings…") { state.presentSettings() }
                 .keyboardShortcut(",")
             Button("Quit Polish My Writing") { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")
-        }
-
-        Settings {
-            SettingsView(state: state)
         }
     }
 }
