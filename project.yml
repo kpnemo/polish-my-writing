@@ -1,0 +1,34 @@
+name: PolishMyWriting
+options:
+  bundleIdPrefix: app.polishmywriting
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+packages:
+  PolishCore:
+    path: .
+targets:
+  PolishMyWriting:
+    type: application
+    platform: macOS
+    sources:
+      - path: App
+    dependencies:
+      - package: PolishCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.polishmywriting.app
+        INFOPLIST_FILE: App/Info.plist
+        CODE_SIGN_ENTITLEMENTS: App/PolishMyWriting.entitlements
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ENABLE_HARDENED_RUNTIME: YES
+        SWIFT_VERSION: "5.0"
+        COMBINE_HIDPI_IMAGES: YES
+schemes:
+  PolishMyWriting:
+    build:
+      targets:
+        PolishMyWriting: all
+    run:
+      config: Debug
