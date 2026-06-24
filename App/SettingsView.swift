@@ -30,8 +30,10 @@ struct SettingsView: View {
             }
 
             Section("Shortcuts") {
-                HotkeyRecorderView(title: "Polish selection", hotkey: polishHotkeyBinding)
-                HotkeyRecorderView(title: "Open settings", hotkey: settingsHotkeyBinding)
+                HotkeyRecorderView(title: "Polish selection", hotkey: polishHotkeyBinding,
+                                   onRecordingChange: setHotkeysSuspended)
+                HotkeyRecorderView(title: "Open settings", hotkey: settingsHotkeyBinding,
+                                   onRecordingChange: setHotkeysSuspended)
             }
 
             Section("General") {
@@ -61,6 +63,10 @@ struct SettingsView: View {
         .frame(width: 420)
         .padding()
         .onAppear { apiKeyDraft = state.apiKey(for: state.settings.provider) }
+    }
+
+    private func setHotkeysSuspended(_ suspended: Bool) {
+        if suspended { state.suspendGlobalHotkeys() } else { state.resumeGlobalHotkeys() }
     }
 
     // MARK: - Bindings

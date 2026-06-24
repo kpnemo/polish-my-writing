@@ -76,7 +76,7 @@ final class AppState: ObservableObject {
             }
         }
         let settingsOK = hotkeys.register(id: HotkeyID.settings, settings.settingsHotkey) { [weak self] in
-            self?.openSettings()
+            Task { @MainActor in self?.openSettings() }
         }
         if !polishOK {
             notifier.notify("Could not register the polish shortcut (\(settings.hotkey.displayString)) — another app may be using it. Pick a different one in Settings.")
@@ -84,6 +84,17 @@ final class AppState: ObservableObject {
         if !settingsOK {
             notifier.notify("Could not register the settings shortcut (\(settings.settingsHotkey.displayString)) — another app may be using it. Pick a different one in Settings.")
         }
+    }
+
+    /// Temporarily disables the global shortcuts (used while the user is recording
+    /// a new shortcut, so the keystroke can't also trigger a polish).
+    func suspendGlobalHotkeys() {
+        hotkeys.unregister(id: HotkeyID.polish)
+        hotkeys.unregister(id: HotkeyID.settings)
+    }
+
+    func resumeGlobalHotkeys() {
+        registerHotkeys()
     }
 
     func update(_ mutate: (inout Settings) -> Void) {

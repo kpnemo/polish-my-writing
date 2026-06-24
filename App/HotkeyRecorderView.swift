@@ -6,6 +6,9 @@ import PolishCore
 struct HotkeyRecorderView: View {
     let title: String
     @Binding var hotkey: HotkeyConfig
+    /// Called with `true` when recording starts and `false` when it ends, so the
+    /// owner can suspend global hotkeys during capture.
+    var onRecordingChange: ((Bool) -> Void)? = nil
 
     @State private var recording = false
     @State private var monitor: Any?
@@ -25,6 +28,7 @@ struct HotkeyRecorderView: View {
 
     private func start() {
         recording = true
+        onRecordingChange?(true)
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             if event.keyCode == 53 { // Esc cancels
                 stop()
@@ -50,7 +54,9 @@ struct HotkeyRecorderView: View {
     }
 
     private func stop() {
+        guard recording else { return }
         recording = false
+        onRecordingChange?(false)
         if let monitor {
             NSEvent.removeMonitor(monitor)
             self.monitor = nil
