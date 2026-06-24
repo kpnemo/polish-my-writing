@@ -93,9 +93,17 @@ final class AppState: ObservableObject {
     func update(_ mutate: (inout Settings) -> Void) {
         var copy = settings
         mutate(&copy)
+        // No-op guard: assigning an unchanged value still fires @Published
+        // objectWillChange. SwiftUI writes bindings (MenuBarExtra `isInserted`, the
+        // level Picker) back during its own menu/scene update; without this guard
+        // those same-value writes re-dirty the graph and create an infinite update
+        // loop that pins the main thread. Only proceed when something changed.
+        guard copy != settings else { return }
+        let hotkeysChanged = copy.hotkey != settings.hotkey
+            || copy.settingsHotkey != settings.settingsHotkey
         settings = copy
         settingsStore.save(copy)
-        registerHotkeys() // re-register in case either shortcut changed
+        if hotkeysChanged { registerHotkeys() } // re-register only when a shortcut changed
     }
 
     func apiKey(for provider: Provider) -> String {
