@@ -30,7 +30,10 @@ xcodebuild -exportArchive -archivePath "$BUILD_DIR/app.xcarchive" \
   -exportOptionsPlist "$BUILD_DIR/ExportOptions.plist" \
   -exportPath "$EXPORT_DIR"
 
-APP_PATH="$EXPORT_DIR/$APP_NAME.app"
+# The on-disk bundle name is the target/product name (PolishMyWriting),
+# not the display name. CFBundleName/CFBundleDisplayName do not rename the
+# built .app file, so reference the actual exported bundle here.
+APP_PATH="$EXPORT_DIR/$SCHEME.app"
 DMG_PATH="$BUILD_DIR/$APP_NAME.dmg"
 
 # Build a simple .dmg with a drag-to-Applications layout.
