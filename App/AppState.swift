@@ -8,6 +8,13 @@ final class AppState: ObservableObject {
     let settingsStore: SettingsStore
     let secretStore: SecretStore
 
+    private let capturing = TextCaptureService()
+    private let hotkeys = HotkeyManager()
+    private var notifier: Notifier!
+    private var service: PolishService!
+
+    var openSettings: () -> Void = {}
+
     init(
         settingsStore: SettingsStore = SettingsStore(),
         secretStore: SecretStore = KeychainStore()
@@ -15,6 +22,28 @@ final class AppState: ObservableObject {
         self.settingsStore = settingsStore
         self.secretStore = secretStore
         self.settings = settingsStore.load()
+
+        self.notifier = Notifier(openSettings: { [weak self] in self?.openSettings() })
+        self.service = PolishService(
+            settingsProvider: { [weak self] in self?.settings ?? .default },
+            secretStore: secretStore,
+            capturing: capturing,
+            notifier: notifier,
+            factory: DefaultProviderFactory(),
+            restoreDelayNanos: 150_000_000
+        )
+        registerHotkey()
+    }
+
+    func start() {
+        _ = PermissionsManager.requestAccessibility()
+    }
+
+    private func registerHotkey() {
+        hotkeys.register(settings.hotkey) { [weak self] in
+            guard let self else { return }
+            Task { await self.service.polishSelection() }
+        }
     }
 
     func update(_ mutate: (inout Settings) -> Void) {
@@ -22,6 +51,7 @@ final class AppState: ObservableObject {
         mutate(&copy)
         settings = copy
         settingsStore.save(copy)
+        registerHotkey() // re-register in case the hotkey changed
     }
 
     func apiKey(for provider: Provider) -> String {
