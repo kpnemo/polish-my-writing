@@ -30,7 +30,6 @@ struct SettingsView: View {
             }
 
             Section("General") {
-                Toggle("Show menu bar icon", isOn: showIconBinding)
                 Toggle("Launch at login", isOn: launchBinding)
                 if !PermissionsManager.hasAccessibility() {
                     Button("Grant Accessibility Permission…") {
@@ -74,10 +73,6 @@ struct SettingsView: View {
 
     private var modelBinding: Binding<String> {
         Binding(get: { state.settings.model }, set: { v in state.update { $0.model = v } })
-    }
-
-    private var showIconBinding: Binding<Bool> {
-        Binding(get: { state.settings.showMenuBarIcon }, set: { v in state.update { $0.showMenuBarIcon = v } })
     }
 
     private var launchBinding: Binding<Bool> {

@@ -12,8 +12,15 @@ final class AppState: ObservableObject {
     private let hotkeys = HotkeyManager()
     private var notifier: Notifier!
     private var service: PolishService!
+    private var isPolishing = false
 
-    var openSettings: () -> Void = {}
+    /// Opens the Settings window programmatically. Has a working default so the
+    /// "no API key → open Settings" path works on first run, before the user has
+    /// ever opened Settings themselves.
+    var openSettings: () -> Void = {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+    }
 
     init(
         settingsStore: SettingsStore = SettingsStore(),
@@ -33,6 +40,9 @@ final class AppState: ObservableObject {
             restoreDelayNanos: 150_000_000
         )
         registerHotkey()
+        // Request Accessibility at launch (not lazily when Settings opens), since
+        // the synthetic ⌘C/⌘V are no-ops without it — the core feature depends on it.
+        start()
     }
 
     func start() {
@@ -42,7 +52,14 @@ final class AppState: ObservableObject {
     private func registerHotkey() {
         let ok = hotkeys.register(settings.hotkey) { [weak self] in
             guard let self else { return }
-            Task { await self.service.polishSelection() }
+            // Serialize fires: ignore a new hotkey press while a polish is in flight,
+            // so a rapid double-tap can't corrupt the saved-clipboard state.
+            Task { @MainActor in
+                guard !self.isPolishing else { return }
+                self.isPolishing = true
+                await self.service.polishSelection()
+                self.isPolishing = false
+            }
         }
         if !ok {
             notifier.notify("Could not register the hotkey — another app may already be using it. Choose a different shortcut in Settings.")

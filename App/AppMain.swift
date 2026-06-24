@@ -4,7 +4,6 @@ import PolishCore
 @main
 struct PolishMyWritingApp: App {
     @StateObject private var state = AppState()
-    @Environment(\.openSettings) private var openSettingsEnv
 
     var body: some Scene {
         MenuBarExtra(
@@ -27,10 +26,6 @@ struct PolishMyWritingApp: App {
 
         Settings {
             SettingsView(state: state)
-                .onAppear {
-                    state.openSettings = { openSettingsEnv() }
-                    state.start()
-                }
         }
     }
 }
