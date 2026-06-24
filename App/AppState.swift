@@ -40,9 +40,12 @@ final class AppState: ObservableObject {
     }
 
     private func registerHotkey() {
-        hotkeys.register(settings.hotkey) { [weak self] in
+        let ok = hotkeys.register(settings.hotkey) { [weak self] in
             guard let self else { return }
             Task { await self.service.polishSelection() }
+        }
+        if !ok {
+            notifier.notify("Could not register the hotkey — another app may already be using it. Choose a different shortcut in Settings.")
         }
     }
 

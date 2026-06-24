@@ -19,12 +19,20 @@ final class TextCaptureService: TextCapturing {
     }
 
     func copySelection() -> String? {
-        let changeCountBefore = pasteboard.changeCount
+        // Capture the change count AFTER clearing, since clearContents() itself
+        // bumps it — so a later change reliably means the frontmost app responded
+        // to Cmd+C (rather than just our own clear).
         pasteboard.clearContents()
+        let changeCountAfterClear = pasteboard.changeCount
         sendKey(keyCode: 8, command: true) // Cmd+C ('C' = 8)
-        // Give the frontmost app a moment to write the pasteboard.
-        usleep(120_000)
-        guard pasteboard.changeCount != changeCountBefore else { return nil }
+        // Poll up to ~500ms so a slow app isn't mistaken for "no selection";
+        // returns as soon as the app writes the pasteboard.
+        var waitedMicros = 0
+        while pasteboard.changeCount == changeCountAfterClear && waitedMicros < 500_000 {
+            usleep(10_000)
+            waitedMicros += 10_000
+        }
+        guard pasteboard.changeCount != changeCountAfterClear else { return nil }
         return pasteboard.string(forType: .string)
     }
 

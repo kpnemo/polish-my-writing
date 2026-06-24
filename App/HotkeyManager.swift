@@ -9,7 +9,11 @@ final class HotkeyManager {
     private var onFire: (() -> Void)?
     private let signature = OSType(0x504C5357) // 'PLSW'
 
-    func register(_ config: HotkeyConfig, onFire: @escaping () -> Void) {
+    /// Registers the global hotkey. Returns `true` on success; `false` if the
+    /// shortcut is already claimed by another app or the handler could not install
+    /// (so callers can tell the user instead of leaving a silently dead hotkey).
+    @discardableResult
+    func register(_ config: HotkeyConfig, onFire: @escaping () -> Void) -> Bool {
         unregister()
         self.onFire = onFire
 
@@ -19,7 +23,7 @@ final class HotkeyManager {
         )
 
         let selfPtr = Unmanaged.passUnretained(self).toOpaque()
-        InstallEventHandler(GetApplicationEventTarget(), { _, event, userData in
+        let handlerStatus = InstallEventHandler(GetApplicationEventTarget(), { _, event, userData in
             guard let userData else { return noErr }
             let manager = Unmanaged<HotkeyManager>.fromOpaque(userData).takeUnretainedValue()
             manager.onFire?()
@@ -27,7 +31,7 @@ final class HotkeyManager {
         }, 1, &eventType, selfPtr, &eventHandler)
 
         let hotKeyID = EventHotKeyID(signature: signature, id: 1)
-        RegisterEventHotKey(
+        let registerStatus = RegisterEventHotKey(
             config.keyCode,
             carbonModifiers(config),
             hotKeyID,
@@ -35,6 +39,12 @@ final class HotkeyManager {
             0,
             &hotKeyRef
         )
+
+        let ok = handlerStatus == noErr && registerStatus == noErr && hotKeyRef != nil
+        if !ok {
+            NSLog("HotkeyManager: registration failed (handler=\(handlerStatus), register=\(registerStatus))")
+        }
+        return ok
     }
 
     func unregister() {
