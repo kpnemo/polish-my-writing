@@ -1,5 +1,7 @@
 # Polish My Writing
 
+[![Downloads](https://img.shields.io/github/downloads/kpnemo/polish-my-writing/total?label=downloads&color=2ea44f)](https://github.com/kpnemo/polish-my-writing/releases/latest)
+
 A tiny macOS menu-bar app that polishes your writing **in place, in any app**.
 Select text, press a hotkey, and your grammar, spelling, and wording are cleaned
 up — while keeping your voice, meaning, and original language. It's a polish, not
