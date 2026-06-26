@@ -11,7 +11,7 @@ final class AppState: ObservableObject {
     private let capturing = TextCaptureService()
     private let hotkeys = HotkeyManager()
     private let settingsWindow = SettingsWindowController()
-    private let accessibility = AccessibilityCoordinator()
+    private let accessibilityWindow = AccessibilityWindowController()
     private var notifier: Notifier!
     private var service: PolishService!
     private var isPolishing = false
@@ -53,7 +53,14 @@ final class AppState: ObservableObject {
     /// Prompts for Accessibility permission and, once granted, relaunches the app
     /// automatically so the new process is trusted and ready to polish.
     func requestAccessibility() {
-        accessibility.requestAndAutoRelaunch { [weak self] msg in self?.notifier.notify(msg) }
+        guard !PermissionsManager.hasAccessibility() else { return }
+        accessibilityWindow.show(
+            openSettings: {
+                _ = PermissionsManager.requestAccessibility()   // lists the app in Accessibility
+                PermissionsManager.openAccessibilitySettings()  // open the pane directly
+            },
+            restart: { Relauncher.relaunch() }
+        )
     }
 
     private func registerHotkeys() {
