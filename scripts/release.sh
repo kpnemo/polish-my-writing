@@ -6,10 +6,13 @@
 # Prerequisites (one-time):
 #   1) A "Developer ID Application" certificate in your keychain
 #      (Xcode → Settings → Accounts → Manage Certificates → + → Developer ID Application).
-#   2) A stored notarization profile:
-#        xcrun notarytool store-credentials pmw-notary \
-#          --apple-id "you@example.com" --team-id "TEAMID" --password "app-specific-pw"
-#      (App-specific password from appleid.apple.com → Sign-In and Security.)
+#   2) Notarization credentials, via EITHER:
+#      a) A stored profile (local use):
+#           xcrun notarytool store-credentials pmw-notary \
+#             --apple-id "you@example.com" --team-id "TEAMID" --password "app-specific-pw"
+#         (App-specific password from appleid.apple.com → Sign-In and Security.)
+#      b) An App Store Connect API key (CI-friendly) via env vars:
+#           NOTARY_KEY=/path/AuthKey_XXXX.p8 NOTARY_KEY_ID=XXXX NOTARY_ISSUER=<uuid> scripts/release.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -62,7 +65,13 @@ echo "==> Signing the .dmg…"
 codesign --force --sign "$DEV_ID" --timestamp "$DMG"
 
 echo "==> Notarizing (uploads to Apple; usually 1-5 min)…"
-xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
+if [ -n "${NOTARY_KEY:-}" ]; then
+  # App Store Connect API key auth (used by CI; also works locally).
+  xcrun notarytool submit "$DMG" \
+    --key "$NOTARY_KEY" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER" --wait
+else
+  xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
+fi
 
 echo "==> Stapling the notarization ticket…"
 xcrun stapler staple "$DMG"
@@ -73,4 +82,4 @@ spctl -a -vvv -t install "$DMG" || true
 
 echo ""
 echo "DONE: $DMG  (signed + notarized + stapled)"
-open -R "$DMG"
+[ -z "${CI:-}" ] && open -R "$DMG" || true

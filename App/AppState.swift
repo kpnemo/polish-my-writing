@@ -15,6 +15,8 @@ final class AppState: ObservableObject {
     private var notifier: Notifier!
     private var service: PolishService!
     private var isPolishing = false
+    private var didRunLaunchGate = false
+    private var launchObserver: NSObjectProtocol?
 
     private enum HotkeyID {
         static let polish: UInt32 = 1
@@ -39,15 +41,86 @@ final class AppState: ObservableObject {
             restoreDelayNanos: 150_000_000
         )
         registerHotkeys()
-        // No launch-time Accessibility prompt: we ask only when the user actually
-        // invokes the polish shortcut without permission (see registerHotkeys),
-        // which avoids nagging on every launch.
+
+        // Coordinate the app's activation policy across both setup windows: the
+        // setup gate can open Settings and the Accessibility window together, and
+        // closing one must not drop the app to .accessory while the other is still
+        // open (which would orphan it). See updateActivationPolicy().
+        settingsWindow.onWillClose = { [weak self] in self?.updateActivationPolicy() }
+        accessibilityWindow.onWillClose = { [weak self] in self?.updateActivationPolicy() }
+
+        // Launch setup gate: if the app isn't ready to use yet (no API key, or
+        // Accessibility off), auto-open Settings. The preferred trigger is the
+        // didFinishLaunching notification — running after the app has finished
+        // launching is what makes window activation stick (otherwise the window
+        // opens behind the previously frontmost app, a MenuBarExtra/LSUIElement
+        // quirk). The deferred Task is a fallback in case that notification was
+        // already posted before this observer registered; the re-assertion timers
+        // in the window controller cover activation either way. runLaunchGateOnce()
+        // makes it run exactly once. assumeIsolated is safe because the observer
+        // uses queue: .main (didFinishLaunching always posts on the main thread).
+        launchObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didFinishLaunchingNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.runLaunchGateOnce() }
+        }
+        Task { @MainActor [weak self] in self?.runLaunchGateOnce() }
+    }
+
+    /// Runs the launch setup gate exactly once, no matter which launch trigger
+    /// fires first.
+    func runLaunchGateOnce() {
+        guard !didRunLaunchGate else { return }
+        didRunLaunchGate = true
+        if let launchObserver {
+            NotificationCenter.default.removeObserver(launchObserver)
+            self.launchObserver = nil
+        }
+        presentSetupIfNeeded()
+    }
+
+    /// Becomes a regular (Dock-visible, focusable) app while any setup window is
+    /// open and reverts to accessory (menu-bar-only) once they all close. Deferred
+    /// so it runs after the closing window's `isVisible` has flipped to false,
+    /// leaving only genuinely-open windows counted.
+    private func updateActivationPolicy() {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let anyOpen = self.settingsWindow.isVisible || self.accessibilityWindow.isVisible
+            NSApp.setActivationPolicy(anyOpen ? .regular : .accessory)
+        }
     }
 
     /// Opens the Settings window and brings it to the front. Works on first run and
     /// when the menu-bar icon is hidden.
     func presentSettings() {
         settingsWindow.show { SettingsView(state: self) }
+    }
+
+    /// On launch, open Settings if anything still needs setting up — an API key
+    /// for any provider, or Accessibility permission. Settings carries both the
+    /// "how to use" and "what's missing" banners, so every incomplete state lands
+    /// there. Re-runs every launch until both requirements are satisfied; once
+    /// complete it presents nothing and never interrupts.
+    ///
+    /// Crucially, this NEVER blocks the main thread on a Keychain read.
+    /// `AXIsProcessTrusted` is cheap and main-safe, so a missing-Accessibility
+    /// state opens Settings immediately. Only when Accessibility is already
+    /// granted do we need the API-key answer, and that Keychain read runs OFF the
+    /// main actor — if it ever triggers an auth prompt (e.g. a signature
+    /// mismatch), it can't freeze launch or hide the window.
+    func presentSetupIfNeeded() {
+        if !PermissionsManager.hasAccessibility() {
+            presentSettings()
+            return
+        }
+        let store = secretStore
+        DispatchQueue.global(qos: .userInitiated).async {
+            let hasKey = hasAnyAPIKey(in: store)
+            DispatchQueue.main.async { [weak self] in
+                if !hasKey { self?.presentSettings() }
+            }
+        }
     }
 
     /// Shows the guided onboarding window (Open-Settings + Restart steps) when

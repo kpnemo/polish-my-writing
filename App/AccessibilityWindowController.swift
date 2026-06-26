@@ -9,6 +9,14 @@ import SwiftUI
 final class AccessibilityWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
 
+    /// Whether the window is currently on screen.
+    var isVisible: Bool { window?.isVisible ?? false }
+
+    /// Called when the window is closing. Lets the owner coordinate the app's
+    /// activation policy across multiple windows; if unset, the controller falls
+    /// back to reverting to accessory on its own.
+    var onWillClose: (() -> Void)?
+
     func show(openSettings: @escaping () -> Void, restart: @escaping () -> Void) {
         if window == nil {
             let hosting = NSHostingController(
@@ -32,15 +40,36 @@ final class AccessibilityWindowController: NSObject, NSWindowDelegate {
         // Become a regular app while the window is open so it can be frontmost and
         // focused; revert to accessory (menu-bar-only) when it closes.
         NSApp.setActivationPolicy(.regular)
-        NSApp.activate()
 
         guard let window else { return }
         if !window.isVisible { window.center() }
+        surfaceToFront(window)
+        // Re-assert shortly after — see SettingsWindowController for the rationale
+        // (a single launch-time activation can be dropped before the app settles).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in self?.surfaceCurrent() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in self?.surfaceCurrent() }
+    }
+
+    private func surfaceCurrent() {
+        guard let window else { return }
+        surfaceToFront(window)
+    }
+
+    /// Force the app and its window to the foreground. `ignoringOtherApps: true`
+    /// is required because at launch there is no user gesture, so the cooperative
+    /// `NSApp.activate()` is ignored and the window would stay behind the
+    /// previously frontmost app (matches the existing `Notifier` pattern).
+    private func surfaceToFront(_ window: NSWindow) {
+        NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         window.orderFrontRegardless()
     }
 
     func windowWillClose(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
+        if let onWillClose {
+            onWillClose()
+        } else {
+            NSApp.setActivationPolicy(.accessory)
+        }
     }
 }
