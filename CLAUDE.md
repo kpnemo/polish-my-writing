@@ -84,6 +84,26 @@ dependency; new `App/` files via the `App/` source path.
 6. **Update docs + memory** so decisions and conventions carry into future
    sessions.
 
+## Releasing
+
+The app is distributed as a **free, notarized Developer ID DMG** (the Mac App
+Store is blocked by the sandbox — see `docs/`/memory). Hosted on GitHub Releases
+(`kpnemo/polish-my-writing`, public) and the author's own website.
+
+To ship a new version:
+1. Bump `CFBundleShortVersionString` in `App/Info.plist` and `MARKETING_VERSION`
+   in `project.yml` (and the build numbers).
+2. Run `scripts/publish_release.sh` (needs the Developer ID cert + notarytool
+   creds — pass `NOTARY_KEY`/`NOTARY_KEY_ID`/`NOTARY_ISSUER` env, or a stored
+   `pmw-notary` profile). It builds → signs → notarizes → staples → publishes a
+   new GitHub release with the DMG.
+
+**NEVER delete old releases or tags.** `download_count` is per-release, so
+deleting one drops its downloads from the cumulative total (the README badge
+sums all releases). `publish_release.sh` never deletes and refuses to clobber an
+existing tag. The stable download link always points at the newest:
+`…/releases/latest/download/PolishMyWriting.dmg`.
+
 ## Features
 
 - **Launch setup gate** — on launch, if no provider has an API key or
