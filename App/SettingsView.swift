@@ -19,6 +19,10 @@ struct SettingsView: View {
                 Button("Save Key") {
                     state.setAPIKey(apiKeyDraft, for: state.settings.provider)
                 }
+                if let url = URL(string: state.settings.provider.apiKeysURL) {
+                    Link("Get your \(state.settings.provider.displayName) API key", destination: url)
+                        .font(.callout)
+                }
             }
 
             Section("Polishing") {
@@ -46,7 +50,7 @@ struct SettingsView: View {
                 Toggle("Launch at login", isOn: launchBinding)
                 if !PermissionsManager.hasAccessibility() {
                     Button("Grant Accessibility Permission…") {
-                        PermissionsManager.requestAccessibility()
+                        state.requestAccessibility()
                     }
                     .foregroundStyle(.orange)
                 }

@@ -11,6 +11,7 @@ final class AppState: ObservableObject {
     private let capturing = TextCaptureService()
     private let hotkeys = HotkeyManager()
     private let settingsWindow = SettingsWindowController()
+    private let accessibility = AccessibilityCoordinator()
     private var notifier: Notifier!
     private var service: PolishService!
     private var isPolishing = false
@@ -49,6 +50,12 @@ final class AppState: ObservableObject {
         settingsWindow.show { SettingsView(state: self) }
     }
 
+    /// Prompts for Accessibility permission and, once granted, relaunches the app
+    /// automatically so the new process is trusted and ready to polish.
+    func requestAccessibility() {
+        accessibility.requestAndAutoRelaunch { [weak self] msg in self?.notifier.notify(msg) }
+    }
+
     private func registerHotkeys() {
         let polishOK = hotkeys.register(id: HotkeyID.polish, settings.hotkey) { [weak self] in
             guard let self else { return }
@@ -56,8 +63,7 @@ final class AppState: ObservableObject {
                 // The synthetic ⌘C/⌘V are silently dropped without Accessibility
                 // trust, so guide the user instead of failing mysteriously.
                 guard PermissionsManager.hasAccessibility() else {
-                    self.notifier.notify("Polish My Writing needs Accessibility permission to replace text. Grant it in the dialog (or Settings) and try again.")
-                    _ = PermissionsManager.requestAccessibility()
+                    self.requestAccessibility()
                     return
                 }
                 // Serialize fires: ignore a new hotkey press while a polish is in
