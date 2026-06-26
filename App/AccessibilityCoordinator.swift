@@ -13,12 +13,12 @@ final class AccessibilityCoordinator {
     /// 180s the poll stops.
     func requestAndAutoRelaunch(notify: @escaping (String) -> Void) {
         if PermissionsManager.hasAccessibility() { return }
+        // Already prompting/polling — don't re-fire the system prompt or the
+        // notification on repeated invocations (e.g. repeated ⌥⌘P presses).
+        guard pollTimer == nil else { return }
 
         _ = PermissionsManager.requestAccessibility() // shows the system prompt
         notify("Grant Accessibility to Polish My Writing — it will restart automatically and be ready.")
-
-        // Guard against starting a second timer if invoked again while polling.
-        guard pollTimer == nil else { return }
 
         deadline = Date().addingTimeInterval(180)
         pollTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
