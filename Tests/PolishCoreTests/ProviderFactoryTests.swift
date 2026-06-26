@@ -7,5 +7,6 @@ final class ProviderFactoryTests: XCTestCase {
         XCTAssertTrue(factory.make(.anthropic, apiKey: "k") is AnthropicProvider)
         XCTAssertTrue(factory.make(.openai, apiKey: "k") is OpenAIProvider)
         XCTAssertTrue(factory.make(.openrouter, apiKey: "k") is OpenRouterProvider)
+        XCTAssertTrue(factory.make(.gemini, apiKey: "k") is GeminiProvider)
     }
 }

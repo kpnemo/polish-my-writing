@@ -9,13 +9,13 @@ backend server operated by this app**, and it collects no analytics or telemetry
 
 When you polish a selection, the app sends **only that selected text** — together
 with a fixed instruction prompt — directly over HTTPS to the **LLM provider you
-chose** (Anthropic, OpenAI, or OpenRouter), authenticated with **your own API
+chose** (Anthropic, OpenAI, OpenRouter, or Google Gemini), authenticated with **your own API
 key**. The polished result comes back and replaces your selection.
 
 - The request goes from your Mac straight to your provider. It does **not** pass
   through any server controlled by the app's author.
 - Your text is therefore handled under **your provider's** privacy and data-use
-  terms (e.g. Anthropic, OpenAI, or OpenRouter). Review theirs to understand how
+  terms (e.g. Anthropic, OpenAI, OpenRouter, or Google Gemini). Review theirs to understand how
   they treat API inputs.
 - Nothing is sent until you trigger a polish on a specific selection.
 

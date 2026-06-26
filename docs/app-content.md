@@ -51,7 +51,7 @@ you chose — never through anyone else's server. It's free, and it's yours.
 - **Works in every app** — anywhere you can select text.
 - **One keystroke** — select, press ⌥⌘P, done. No copy-paste, no switching windows.
 - **Keeps your voice & language** — polishes, never rewrites; works in any language.
-- **Bring your own key** — Anthropic, OpenAI, or OpenRouter. Your account, your control.
+- **Bring your own key** — Anthropic, OpenAI, OpenRouter, or Google Gemini. Your account, your control.
 - **Private by design** — no backend, no telemetry; your API key stays in the Keychain.
 - **Out of the way** — menu-bar only, with a guided first-run setup.
 - **Free.**
@@ -65,7 +65,7 @@ you chose — never through anyone else's server. It's free, and it's yours.
 ## Requirements
 
 - macOS 14 (Sonoma) or later.
-- An API key from Anthropic, OpenAI, or OpenRouter (free tiers available).
+- An API key from Anthropic, OpenAI, OpenRouter, or Google Gemini (free tiers available).
 - Accessibility permission (macOS asks on first launch — it's what lets the app
   replace your selected text).
 
@@ -89,7 +89,7 @@ an API key and enabling Accessibility.
 ## Keywords / tags
 
 grammar, writing, proofread, spelling, macOS, menu bar, productivity, AI, LLM,
-polish, editor, rewrite, text, Anthropic, OpenAI, OpenRouter
+polish, editor, rewrite, text, Anthropic, OpenAI, OpenRouter, Gemini, Google, Gemini, Google
 
 ---
 
@@ -102,7 +102,7 @@ polished in place — grammar, spelling, and wording fixed while keeping your vo
 and language.
 
 - Polish selected text in any app with a global hotkey.
-- Bring your own key: Anthropic, OpenAI, or OpenRouter.
+- Bring your own key: Anthropic, OpenAI, OpenRouter, or Google Gemini.
 - Guided first-run setup (API key + Accessibility), shown automatically on launch.
 - Private by design — no backend; your key stays in the Keychain.
 - Lightweight menu-bar app; configurable shortcuts and polishing level.

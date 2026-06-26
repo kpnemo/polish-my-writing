@@ -6,7 +6,7 @@ up — while keeping your voice, meaning, and original language. It's a polish, 
 a rewrite.
 
 - **Works everywhere** — Mail, Slack, Notes, browsers, anywhere you can select text.
-- **Bring your own key** — Anthropic, OpenAI, or OpenRouter. Your key, your account.
+- **Bring your own key** — Anthropic, OpenAI, OpenRouter, or Google Gemini. Your key, your account.
 - **Private by design** — there is no backend. Your text goes straight from your
   Mac to the provider you chose. See [PRIVACY.md](PRIVACY.md).
 - **Any language** — it polishes in whatever language you wrote.

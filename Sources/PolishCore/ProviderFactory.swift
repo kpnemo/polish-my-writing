@@ -14,6 +14,7 @@ public struct DefaultProviderFactory: LLMProviderFactory {
         case .anthropic: return AnthropicProvider(apiKey: apiKey, transport: transport)
         case .openai: return OpenAIProvider(apiKey: apiKey, transport: transport)
         case .openrouter: return OpenRouterProvider(apiKey: apiKey, transport: transport)
+        case .gemini: return GeminiProvider(apiKey: apiKey, transport: transport)
         }
     }
 }
