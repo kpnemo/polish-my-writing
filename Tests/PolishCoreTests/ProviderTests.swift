@@ -1,4 +1,5 @@
 import XCTest
+import Foundation
 @testable import PolishCore
 
 final class ProviderTests: XCTestCase {
@@ -16,5 +17,12 @@ final class ProviderTests: XCTestCase {
         XCTAssertEqual(Provider.anthropic.displayName, "Anthropic")
         XCTAssertEqual(Provider.openai.displayName, "OpenAI")
         XCTAssertEqual(Provider.openrouter.displayName, "OpenRouter")
+    }
+
+    func test_provider_apiKeysURLs() {
+        XCTAssertTrue(Provider.anthropic.apiKeysURL.contains("console.anthropic.com"))
+        XCTAssertTrue(Provider.openai.apiKeysURL.contains("platform.openai.com"))
+        XCTAssertTrue(Provider.openrouter.apiKeysURL.contains("openrouter.ai"))
+        for p in Provider.allCases { XCTAssertNotNil(URL(string: p.apiKeysURL)) }
     }
 }

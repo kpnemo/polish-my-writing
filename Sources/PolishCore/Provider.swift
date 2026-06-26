@@ -18,4 +18,12 @@ public enum Provider: String, Codable, CaseIterable, Sendable {
         case .openrouter: return "openai/gpt-4o-mini"
         }
     }
+
+    public var apiKeysURL: String {
+        switch self {
+        case .anthropic: return "https://console.anthropic.com/settings/keys"
+        case .openai: return "https://platform.openai.com/api-keys"
+        case .openrouter: return "https://openrouter.ai/keys"
+        }
+    }
 }
