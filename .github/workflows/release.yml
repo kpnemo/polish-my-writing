@@ -23,10 +23,14 @@
 
 name: Release
 
+# Manual-only for now. The auto-trigger on tag push is disabled until the
+# Developer ID cert secrets (DEVELOPER_ID_CERT_P12_BASE64 +
+# DEVELOPER_ID_CERT_PASSWORD) are added — otherwise every tag produces a failing
+# run. To re-enable automatic releases, uncomment the `push:` block below.
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
+  # push:
+  #   tags: ["v*"]
 
 permissions:
   contents: write   # needed to create the Release and upload the DMG

@@ -3,19 +3,12 @@ import SwiftUI
 
 /// Owns a single AppKit-hosted Accessibility onboarding window. Mirrors
 /// `SettingsWindowController`: managing the window directly (instead of a SwiftUI
-/// scene) lets us reliably open it and force it to the front in a menu-bar /
-/// LSUIElement app.
+/// scene) lets us reliably open it and bring it to the front in a menu-bar /
+/// LSUIElement app, and — like the Settings window — it never changes
+/// `NSApp.activationPolicy` (which would make the MenuBarExtra icon disappear).
 @MainActor
-final class AccessibilityWindowController: NSObject, NSWindowDelegate {
+final class AccessibilityWindowController: NSObject {
     private var window: NSWindow?
-
-    /// Whether the window is currently on screen.
-    var isVisible: Bool { window?.isVisible ?? false }
-
-    /// Called when the window is closing. Lets the owner coordinate the app's
-    /// activation policy across multiple windows; if unset, the controller falls
-    /// back to reverting to accessory on its own.
-    var onWillClose: (() -> Void)?
 
     func show(openSettings: @escaping () -> Void, restart: @escaping () -> Void) {
         if window == nil {
@@ -31,15 +24,10 @@ final class AccessibilityWindowController: NSObject, NSWindowDelegate {
             w.title = "Enable Polish My Writing"
             w.styleMask = [.titled, .closable]
             w.isReleasedWhenClosed = false
-            w.delegate = self
             w.setContentSize(NSSize(width: 480, height: 340))
             w.center()
             window = w
         }
-
-        // Become a regular app while the window is open so it can be frontmost and
-        // focused; revert to accessory (menu-bar-only) when it closes.
-        NSApp.setActivationPolicy(.regular)
 
         guard let window else { return }
         if !window.isVisible { window.center() }
@@ -51,25 +39,16 @@ final class AccessibilityWindowController: NSObject, NSWindowDelegate {
     }
 
     private func surfaceCurrent() {
-        guard let window else { return }
+        guard let window, window.isVisible else { return }
         surfaceToFront(window)
     }
 
-    /// Force the app and its window to the foreground. `ignoringOtherApps: true`
-    /// is required because at launch there is no user gesture, so the cooperative
-    /// `NSApp.activate()` is ignored and the window would stay behind the
-    /// previously frontmost app (matches the existing `Notifier` pattern).
+    /// Bring the app + window to the front. `ignoringOtherApps: true` is needed
+    /// because at launch there is no user gesture, so the cooperative
+    /// `NSApp.activate()` is ignored (matches the existing `Notifier` pattern).
     private func surfaceToFront(_ window: NSWindow) {
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         window.orderFrontRegardless()
-    }
-
-    func windowWillClose(_ notification: Notification) {
-        if let onWillClose {
-            onWillClose()
-        } else {
-            NSApp.setActivationPolicy(.accessory)
-        }
     }
 }

@@ -42,13 +42,6 @@ final class AppState: ObservableObject {
         )
         registerHotkeys()
 
-        // Coordinate the app's activation policy across both setup windows: the
-        // setup gate can open Settings and the Accessibility window together, and
-        // closing one must not drop the app to .accessory while the other is still
-        // open (which would orphan it). See updateActivationPolicy().
-        settingsWindow.onWillClose = { [weak self] in self?.updateActivationPolicy() }
-        accessibilityWindow.onWillClose = { [weak self] in self?.updateActivationPolicy() }
-
         // Launch setup gate: if the app isn't ready to use yet (no API key, or
         // Accessibility off), auto-open Settings. The preferred trigger is the
         // didFinishLaunching notification — running after the app has finished
@@ -77,18 +70,6 @@ final class AppState: ObservableObject {
             self.launchObserver = nil
         }
         presentSetupIfNeeded()
-    }
-
-    /// Becomes a regular (Dock-visible, focusable) app while any setup window is
-    /// open and reverts to accessory (menu-bar-only) once they all close. Deferred
-    /// so it runs after the closing window's `isVisible` has flipped to false,
-    /// leaving only genuinely-open windows counted.
-    private func updateActivationPolicy() {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            let anyOpen = self.settingsWindow.isVisible || self.accessibilityWindow.isVisible
-            NSApp.setActivationPolicy(anyOpen ? .regular : .accessory)
-        }
     }
 
     /// Opens the Settings window and brings it to the front. Works on first run and
