@@ -9,7 +9,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-CERT="Polish My Writing Dev"
+# Prefer the real Developer ID identity (matches the notarized release), and fall
+# back to the local self-signed dev cert for machines without one.
+CERT=$(security find-identity -v -p codesigning \
+  | grep "Developer ID Application" | head -1 | sed -E 's/^[^"]*"([^"]+)".*/\1/')
+[ -z "$CERT" ] && CERT="Polish My Writing Dev"
 APP_NAME="Polish My Writing"
 SRC="build/dd/Build/Products/Release/PolishMyWriting.app"
 STAGE="build/dmg-stage"
