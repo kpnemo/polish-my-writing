@@ -1,50 +1,76 @@
 #!/usr/bin/env bash
+# Build a SIGNED + NOTARIZED + STAPLED .dmg for direct distribution.
+# Result: users double-click the .dmg, drag to Applications, and launch with no
+# Gatekeeper warning, no Keychain prompt, and a persistent Accessibility grant.
+#
+# Prerequisites (one-time):
+#   1) A "Developer ID Application" certificate in your keychain
+#      (Xcode → Settings → Accounts → Manage Certificates → + → Developer ID Application).
+#   2) A stored notarization profile:
+#        xcrun notarytool store-credentials pmw-notary \
+#          --apple-id "you@example.com" --team-id "TEAMID" --password "app-specific-pw"
+#      (App-specific password from appleid.apple.com → Sign-In and Security.)
 set -euo pipefail
+cd "$(dirname "$0")/.."
 
-# Required: your Developer ID and notarization credentials.
-DEV_ID="Developer ID Application: YOUR NAME (TEAMID)"
-KEYCHAIN_PROFILE="polish-notary"   # created once via: xcrun notarytool store-credentials
 APP_NAME="Polish My Writing"
-SCHEME="PolishMyWriting"
+SRC="build/dd/Build/Products/Release/PolishMyWriting.app"
+STAGE="build/dmg-stage"
+DMG="build/$APP_NAME.dmg"
+ENTITLEMENTS="App/PolishMyWriting.entitlements"
+NOTARY_PROFILE="${NOTARY_PROFILE:-pmw-notary}"
 
-BUILD_DIR="$(pwd)/build"
-EXPORT_DIR="$BUILD_DIR/export"
-rm -rf "$BUILD_DIR"
-mkdir -p "$EXPORT_DIR"
+# Auto-detect the Developer ID Application identity.
+DEV_ID=$(security find-identity -v -p codesigning \
+  | grep "Developer ID Application" | head -1 | sed -E 's/^[^"]*"([^"]+)".*/\1/')
+if [ -z "$DEV_ID" ]; then
+  echo "ERROR: No 'Developer ID Application' certificate found."
+  echo "Create one: Xcode → Settings → Accounts → (your team) → Manage Certificates → + → Developer ID Application."
+  exit 1
+fi
+echo "==> Signing identity: $DEV_ID"
 
+echo "==> Building (Release)…"
 xcodegen generate
+xcodebuild -project PolishMyWriting.xcodeproj -scheme PolishMyWriting -configuration Release \
+  -derivedDataPath build/dd \
+  CODE_SIGNING_ALLOWED=NO build >/dev/null
+echo "    build ok"
 
-# Archive and export a Developer-ID-signed app.
-xcodebuild -project PolishMyWriting.xcodeproj -scheme "$SCHEME" \
-  -configuration Release -archivePath "$BUILD_DIR/app.xcarchive" archive
+echo "==> Signing the app (Developer ID, hardened runtime, secure timestamp)…"
+codesign --force --options runtime --timestamp \
+  --entitlements "$ENTITLEMENTS" --sign "$DEV_ID" "$SRC"
+codesign --verify --strict --verbose=2 "$SRC"
 
-cat > "$BUILD_DIR/ExportOptions.plist" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-  <key>method</key><string>developer-id</string>
-</dict></plist>
-PLIST
+echo "==> Generating installer background…"
+swift scripts/generate_dmg_background.swift
 
-xcodebuild -exportArchive -archivePath "$BUILD_DIR/app.xcarchive" \
-  -exportOptionsPlist "$BUILD_DIR/ExportOptions.plist" \
-  -exportPath "$EXPORT_DIR"
+echo "==> Building the .dmg…"
+rm -rf "$STAGE"; mkdir -p "$STAGE"
+ditto "$SRC" "$STAGE/$APP_NAME.app"
+rm -f "$DMG"
+create-dmg \
+  --volname "$APP_NAME" \
+  --background "build/dmg_background.png" \
+  --window-pos 200 120 --window-size 600 400 --icon-size 120 \
+  --icon "$APP_NAME.app" 150 200 --hide-extension "$APP_NAME.app" \
+  --app-drop-link 450 200 --no-internet-enable \
+  "$DMG" "$STAGE" || true
+[ -f "$DMG" ] || { echo "ERROR: dmg not created"; exit 1; }
 
-# The on-disk bundle name is the target/product name (PolishMyWriting),
-# not the display name. CFBundleName/CFBundleDisplayName do not rename the
-# built .app file, so reference the actual exported bundle here.
-APP_PATH="$EXPORT_DIR/$SCHEME.app"
-DMG_PATH="$BUILD_DIR/$APP_NAME.dmg"
+echo "==> Signing the .dmg…"
+codesign --force --sign "$DEV_ID" --timestamp "$DMG"
 
-# Build a simple .dmg with a drag-to-Applications layout.
-STAGE="$BUILD_DIR/dmg-stage"
-mkdir -p "$STAGE"
-cp -R "$APP_PATH" "$STAGE/"
-ln -s /Applications "$STAGE/Applications"
-hdiutil create -volname "$APP_NAME" -srcfolder "$STAGE" -ov -format UDZO "$DMG_PATH"
+echo "==> Notarizing (uploads to Apple; usually 1-5 min)…"
+xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
 
-# Notarize and staple the .dmg.
-xcrun notarytool submit "$DMG_PATH" --keychain-profile "$KEYCHAIN_PROFILE" --wait
-xcrun stapler staple "$DMG_PATH"
+echo "==> Stapling the notarization ticket…"
+xcrun stapler staple "$DMG"
+xcrun stapler validate "$DMG"
 
-echo "Built and notarized: $DMG_PATH"
+echo "==> Gatekeeper assessment…"
+spctl -a -vvv -t install "$DMG" || true
+
+echo ""
+echo "DONE: $DMG  (signed + notarized + stapled)"
+open -R "$DMG"
