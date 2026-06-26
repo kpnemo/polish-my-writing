@@ -50,8 +50,9 @@ final class AppState: ObservableObject {
         settingsWindow.show { SettingsView(state: self) }
     }
 
-    /// Prompts for Accessibility permission and, once granted, relaunches the app
-    /// automatically so the new process is trusted and ready to polish.
+    /// Shows the guided onboarding window (Open-Settings + Restart steps) when
+    /// Accessibility is missing. In-process auto-detection of the grant is
+    /// unreliable on macOS, so the user restarts explicitly via the window.
     func requestAccessibility() {
         guard !PermissionsManager.hasAccessibility() else { return }
         accessibilityWindow.show(
