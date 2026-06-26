@@ -89,7 +89,7 @@ an API key and enabling Accessibility.
 ## Keywords / tags
 
 grammar, writing, proofread, spelling, macOS, menu bar, productivity, AI, LLM,
-polish, editor, rewrite, text, Anthropic, OpenAI, OpenRouter, Gemini, Google, Gemini, Google
+polish, editor, rewrite, text, Anthropic, OpenAI, OpenRouter, Gemini, Google
 
 ---
 
