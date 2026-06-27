@@ -2,6 +2,9 @@ public struct Settings: Codable, Equatable, Sendable {
     public var provider: Provider
     public var model: String
     public var level: PolishLevel
+    /// Instruction used when `level == .custom`. Seeded with an example so the
+    /// field is never blank on first use.
+    public var customPrompt: String
     /// Global shortcut that polishes the current selection.
     public var hotkey: HotkeyConfig
     /// Global shortcut that opens the Settings window (the escape hatch when the
@@ -14,6 +17,7 @@ public struct Settings: Codable, Equatable, Sendable {
         provider: Provider,
         model: String,
         level: PolishLevel,
+        customPrompt: String = Settings.defaultCustomPrompt,
         hotkey: HotkeyConfig,
         settingsHotkey: HotkeyConfig = .defaultSettings,
         showMenuBarIcon: Bool,
@@ -22,16 +26,23 @@ public struct Settings: Codable, Equatable, Sendable {
         self.provider = provider
         self.model = model
         self.level = level
+        self.customPrompt = customPrompt
         self.hotkey = hotkey
         self.settingsHotkey = settingsHotkey
         self.showMenuBarIcon = showMenuBarIcon
         self.launchAtLogin = launchAtLogin
     }
 
+    /// Example custom instruction, shown until the user replaces it.
+    public static let defaultCustomPrompt =
+        "Rewrite in a more cynical, dry tone while keeping the same meaning, "
+        + "language, and facts. Do not add or remove information."
+
     public static let `default` = Settings(
         provider: .anthropic,
         model: Provider.anthropic.defaultModel,
         level: .standard,
+        customPrompt: Settings.defaultCustomPrompt,
         hotkey: .default,
         settingsHotkey: .defaultSettings,
         showMenuBarIcon: true,
@@ -39,7 +50,7 @@ public struct Settings: Codable, Equatable, Sendable {
     )
 
     private enum CodingKeys: String, CodingKey {
-        case provider, model, level, hotkey, settingsHotkey, showMenuBarIcon, launchAtLogin
+        case provider, model, level, customPrompt, hotkey, settingsHotkey, showMenuBarIcon, launchAtLogin
     }
 
     // Tolerant decoding: any field missing from older persisted data falls back to
@@ -50,6 +61,7 @@ public struct Settings: Codable, Equatable, Sendable {
         provider = try c.decodeIfPresent(Provider.self, forKey: .provider) ?? d.provider
         model = try c.decodeIfPresent(String.self, forKey: .model) ?? d.model
         level = try c.decodeIfPresent(PolishLevel.self, forKey: .level) ?? d.level
+        customPrompt = try c.decodeIfPresent(String.self, forKey: .customPrompt) ?? d.customPrompt
         hotkey = try c.decodeIfPresent(HotkeyConfig.self, forKey: .hotkey) ?? d.hotkey
         settingsHotkey = try c.decodeIfPresent(HotkeyConfig.self, forKey: .settingsHotkey) ?? d.settingsHotkey
         showMenuBarIcon = try c.decodeIfPresent(Bool.self, forKey: .showMenuBarIcon) ?? d.showMenuBarIcon

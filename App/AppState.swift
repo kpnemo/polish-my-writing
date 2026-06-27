@@ -12,11 +12,16 @@ final class AppState: ObservableObject {
     private let hotkeys = HotkeyManager()
     private let settingsWindow = SettingsWindowController()
     private let accessibilityWindow = AccessibilityWindowController()
+    private var statusItem: StatusItemController?
     private var notifier: Notifier!
     private var service: PolishService!
     private var isPolishing = false
     private var didRunLaunchGate = false
     private var launchObserver: NSObjectProtocol?
+    /// Whether the settings shortcut is currently registered. When false, the
+    /// shortcut is NOT a working way back into the app, so hiding the menu-bar
+    /// icon would strand the user — see `setMenuBarIconVisible`.
+    private(set) var settingsHotkeyRegistered = true
 
     private enum HotkeyID {
         static let polish: UInt32 = 1
@@ -70,6 +75,35 @@ final class AppState: ObservableObject {
             self.launchObserver = nil
         }
         presentSetupIfNeeded()
+    }
+
+    /// Creates the menu-bar status item and starts watching for sleep/wake and
+    /// display changes that would otherwise make the icon vanish. Called once at
+    /// launch by the AppDelegate.
+    func installMenuBar() {
+        let controller = StatusItemController(visible: settings.showMenuBarIcon) { [weak self] menu in
+            self?.populateStatusMenu(menu)
+        }
+        controller.install()
+        statusItem = controller
+    }
+
+    /// Builds the status-bar menu: the polish level (with the active one checked,
+    /// including a Custom level) plus Settings and Quit.
+    private func populateStatusMenu(_ menu: NSMenu) {
+        for level in PolishLevel.allCases {
+            menu.addItem(ClosureMenuItem(
+                title: level.displayName,
+                state: settings.level == level ? .on : .off
+            ) { [weak self] in self?.update { $0.level = level } })
+        }
+        menu.addItem(.separator())
+        let settingsItem = ClosureMenuItem(title: "Settings…") { [weak self] in self?.presentSettings() }
+        settingsItem.keyEquivalent = ","
+        menu.addItem(settingsItem)
+        let quitItem = ClosureMenuItem(title: "Quit Polish My Writing") { NSApplication.shared.terminate(nil) }
+        quitItem.keyEquivalent = "q"
+        menu.addItem(quitItem)
     }
 
     /// Opens the Settings window and brings it to the front. Works on first run and
@@ -139,6 +173,7 @@ final class AppState: ObservableObject {
         let settingsOK = hotkeys.register(id: HotkeyID.settings, settings.settingsHotkey) { [weak self] in
             Task { @MainActor in self?.presentSettings() }
         }
+        settingsHotkeyRegistered = settingsOK
         if !polishOK {
             notifier.notify("Could not register the polish shortcut (\(settings.hotkey.displayString)) — another app may be using it. Pick a different one in Settings.")
         }
@@ -169,9 +204,11 @@ final class AppState: ObservableObject {
         guard copy != settings else { return }
         let hotkeysChanged = copy.hotkey != settings.hotkey
             || copy.settingsHotkey != settings.settingsHotkey
+        let iconVisibilityChanged = copy.showMenuBarIcon != settings.showMenuBarIcon
         settings = copy
         settingsStore.save(copy)
         if hotkeysChanged { registerHotkeys() } // re-register only when a shortcut changed
+        if iconVisibilityChanged { statusItem?.setVisible(copy.showMenuBarIcon) }
     }
 
     func apiKey(for provider: Provider) -> String {
@@ -180,5 +217,33 @@ final class AppState: ObservableObject {
 
     func setAPIKey(_ key: String, for provider: Provider) {
         try? secretStore.setAPIKey(key.isEmpty ? nil : key, for: provider)
+    }
+
+    /// Sets menu-bar icon visibility, but refuses to HIDE it when the settings
+    /// shortcut isn't registered — otherwise there'd be no menu and no working
+    /// shortcut to reopen Settings, stranding the user. Returns whether the
+    /// change was applied; `objectWillChange` fires on refusal so a bound
+    /// SwiftUI toggle snaps back to "on".
+    @discardableResult
+    func setMenuBarIconVisible(_ visible: Bool) -> Bool {
+        if !visible && !settingsHotkeyRegistered {
+            notifier.notify(
+                "Can't hide the icon: the settings shortcut (\(settings.settingsHotkey.displayString)) "
+                + "isn't active, so you'd have no way to reopen Settings. Set a working settings "
+                + "shortcut first."
+            )
+            objectWillChange.send()
+            return false
+        }
+        update { $0.showMenuBarIcon = visible }
+        return true
+    }
+
+    /// Runs a built-in sample through the given key/provider/model so the user
+    /// can verify it works (or see the exact error). Uses the live network via
+    /// DefaultProviderFactory; the decision logic lives in PolishCore.PolishTester.
+    func testKey(_ key: String, provider: Provider, model: String) async -> PolishTestResult {
+        await PolishTester(factory: DefaultProviderFactory())
+            .test(provider: provider, apiKey: key, model: model)
     }
 }

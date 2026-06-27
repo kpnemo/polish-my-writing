@@ -3,8 +3,21 @@ import Foundation
 @testable import PolishCore
 
 final class ProviderTests: XCTestCase {
-    func test_polishLevel_hasThreeCases() {
-        XCTAssertEqual(PolishLevel.allCases, [.light, .standard, .thorough])
+    func test_polishLevel_hasFourCases() {
+        XCTAssertEqual(PolishLevel.allCases, [.light, .standard, .thorough, .custom])
+    }
+
+    func test_models_topThree_recommendedFirstMatchesDefault() {
+        for p in Provider.allCases {
+            XCTAssertEqual(p.models.count, 3, "\(p) should offer three picks")
+            XCTAssertEqual(p.models.first?.id, p.defaultModel,
+                           "\(p) recommended model must equal defaultModel")
+            for m in p.models {
+                XCTAssertFalse(m.id.isEmpty)
+                XCTAssertFalse(m.displayName.isEmpty)
+            }
+            XCTAssertEqual(Set(p.models.map(\.id)).count, p.models.count)
+        }
     }
 
     func test_provider_defaultModels() {

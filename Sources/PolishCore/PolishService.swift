@@ -63,7 +63,7 @@ public final class PolishService {
 
         // 3. Call the provider.
         let provider = factory.make(settings.provider, apiKey: apiKey)
-        let systemPrompt = PromptBuilder.systemPrompt(for: settings.level)
+        let systemPrompt = PromptBuilder.systemPrompt(for: settings.level, customPrompt: settings.customPrompt)
         do {
             let polished = try await provider.polish(
                 text: raw, systemPrompt: systemPrompt, model: settings.model

@@ -1,30 +1,14 @@
 import SwiftUI
-import PolishCore
 
 @main
 struct PolishMyWritingApp: App {
-    @StateObject private var state = AppState()
+    // The status item and all app wiring live in AppDelegate/AppState, not in a
+    // SwiftUI scene — see AppDelegate for why. The Settings scene is an empty
+    // placeholder so the `App` protocol is satisfied; the real Settings window
+    // is an AppKit window managed by SettingsWindowController.
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        MenuBarExtra(
-            "Polish My Writing",
-            systemImage: "pencil.and.scribble",
-            isInserted: Binding(
-                get: { state.settings.showMenuBarIcon },
-                set: { v in state.update { $0.showMenuBarIcon = v } }
-            )
-        ) {
-            Picker("Level", selection: Binding(
-                get: { state.settings.level },
-                set: { v in state.update { $0.level = v } }
-            )) {
-                ForEach(PolishLevel.allCases, id: \.self) { Text($0.displayName).tag($0) }
-            }
-            Divider()
-            Button("Settings…") { state.presentSettings() }
-                .keyboardShortcut(",")
-            Button("Quit Polish My Writing") { NSApplication.shared.terminate(nil) }
-                .keyboardShortcut("q")
-        }
+        Settings { EmptyView() }
     }
 }
